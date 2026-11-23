@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  # 1. Compilar para Android (.apk) usando Capacitor
+  # 1. Compilar para Android (.apk) usando Capacitor existente
   build-android:
     runs-on: ubuntu-latest
     steps:
@@ -30,14 +30,9 @@ jobs:
           npm install
           npm run build
           
-          # Detectar carpeta de salida (dist o build)
-          WEB_DIR="dist"
-          if [ ! -d "dist" ] && [ -d "build" ]; then WEB_DIR="build"; fi
-          
-          # Configurar Capacitor y compilar APK si no existe carpeta android
+          # Como ya existe capacitor.config.ts, solo agregamos Android si falta y sincronizamos
           if [ ! -d "android" ]; then
-            npm install @capacitor/core @capacitor/cli @capacitor/android
-            npx cap init "RentaProAR" "com.rentaproar.app" --web-dir="$WEB_DIR"
+            npm install @capacitor/android
             npx cap add android
           fi
           npx cap sync android
@@ -73,7 +68,9 @@ jobs:
           $webDir = if (Test-Path "dist") { "dist" } else { "build" }
           npm install electron electron-packager --save-dev
           
-          # Crear punto de entrada mínimo para Electron
+          # Registrar electron-main.js como punto de entrada en package.json
+          node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json')); p.main='electron-main.js'; fs.writeFileSync('package.json', JSON.stringify(p,null,2));"
+          
           @"
           const { app, BrowserWindow } = require('electron');
           const path = require('path');
