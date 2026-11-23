@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Descomprimir proyecto
-        run: unzip proyecto.zip -d ./app
+        run: unzip RentaProAR-FullStack-APK.zip -d ./app
       
       - uses: actions/setup-java@v4
         with:
