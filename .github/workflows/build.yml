@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Descomprimir proyecto
-        run: unzip *.zip -d ./app
+        run: unzip "*.zip" -d ./app
       
       - uses: actions/setup-java@v4
         with:
@@ -21,14 +21,16 @@ jobs:
       - uses: subosito/flutter-action@v2
       
       - name: Generar APK
-        working-directory: ./app
-        run: flutter build apk --release
+        run: |
+          DIR=$(dirname $(find ./app -name "pubspec.yaml" | head -n 1))
+          cd "$DIR"
+          flutter build apk --release
 
       - name: Subir APK compilado
         uses: actions/upload-artifact@v4
         with:
           name: app-android
-          path: app/build/app/outputs/flutter-apk/app-release.apk
+          path: app/**/build/app/outputs/flutter-apk/app-release.apk
 
   # 2. Compilar para Escritorio Windows (.exe)
   build-windows:
@@ -41,11 +43,13 @@ jobs:
       - uses: subosito/flutter-action@v2
       
       - name: Generar ejecutable Windows
-        working-directory: ./app
-        run: flutter build windows --release
+        run: |
+          $dir = (Get-ChildItem -Path ./app -Filter "pubspec.yaml" -Recurse | Select-Object -First 1).DirectoryName
+          cd "$dir"
+          flutter build windows --release
 
       - name: Subir app de Windows
         uses: actions/upload-artifact@v4
         with:
           name: app-windows
-          path: app/build/windows/x64/runner/Release/
+          path: app/**/build/windows/x64/runner/Release/
