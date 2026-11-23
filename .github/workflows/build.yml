@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Descomprimir proyecto
-        run: unzip RentaProAR-FullStack-APK.zip -d ./app
+        run: unzip *.zip -d ./app
       
       - uses: actions/setup-java@v4
         with:
@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Descomprimir proyecto
-        run: Expand-Archive -Path proyecto.zip -DestinationPath ./app
+        run: Expand-Archive -Path *.zip -DestinationPath ./app
       
       - uses: subosito/flutter-action@v2
       
