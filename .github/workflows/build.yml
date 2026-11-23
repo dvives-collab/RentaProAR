@@ -6,50 +6,88 @@ on:
   workflow_dispatch:
 
 jobs:
-  # 1. Compilar para Android (.apk)
+  # 1. Compilar para Android (.apk) usando Capacitor
   build-android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Descomprimir proyecto
         run: unzip "*.zip" -d ./app
-      
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-      - uses: subosito/flutter-action@v2
-      
-      - name: Generar APK
+
+      - name: Compilar Web y generar APK
         run: |
-          DIR=$(dirname $(find ./app -name "pubspec.yaml" | head -n 1))
+          DIR=$(dirname $(find ./app -name "package.json" | head -n 1))
           cd "$DIR"
-          flutter build apk --release
+          npm install
+          npm run build
+          
+          # Detectar carpeta de salida (dist o build)
+          WEB_DIR="dist"
+          if [ ! -d "dist" ] && [ -d "build" ]; then WEB_DIR="build"; fi
+          
+          # Configurar Capacitor y compilar APK si no existe carpeta android
+          if [ ! -d "android" ]; then
+            npm install @capacitor/core @capacitor/cli @capacitor/android
+            npx cap init "RentaProAR" "com.rentaproar.app" --web-dir="$WEB_DIR"
+            npx cap add android
+          fi
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Subir APK compilado
         uses: actions/upload-artifact@v4
         with:
           name: app-android
-          path: app/**/build/app/outputs/flutter-apk/app-release.apk
+          path: app/**/android/app/build/outputs/apk/debug/app-debug.apk
 
-  # 2. Compilar para Escritorio Windows (.exe)
+  # 2. Compilar para Escritorio Windows (.exe) usando Electron
   build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - name: Descomprimir proyecto
         run: Expand-Archive -Path *.zip -DestinationPath ./app
-      
-      - uses: subosito/flutter-action@v2
-      
-      - name: Generar ejecutable Windows
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Compilar Web y generar EXE
         run: |
-          $dir = (Get-ChildItem -Path ./app -Filter "pubspec.yaml" -Recurse | Select-Object -First 1).DirectoryName
+          $dir = (Get-ChildItem -Path ./app -Filter "package.json" -Recurse | Select-Object -First 1).DirectoryName
           cd "$dir"
-          flutter build windows --release
+          npm install
+          npm run build
+          
+          $webDir = if (Test-Path "dist") { "dist" } else { "build" }
+          npm install electron electron-packager --save-dev
+          
+          # Crear punto de entrada mínimo para Electron
+          @"
+          const { app, BrowserWindow } = require('electron');
+          const path = require('path');
+          app.whenReady().then(() => {
+            const win = new BrowserWindow({ width: 1200, height: 800 });
+            win.loadFile(path.join(__dirname, '$webDir/index.html'));
+          });
+          app.on('window-all-closed', () => app.quit());
+          "@ | Out-File -FilePath "electron-main.js" -Encoding utf8
+          
+          npx electron-packager . RentaProAR --platform=win32 --arch=x64 --out=release --overwrite
 
       - name: Subir app de Windows
         uses: actions/upload-artifact@v4
         with:
           name: app-windows
-          path: app/**/build/windows/x64/runner/Release/
+          path: app/**/release/RentaProAR-win32-x64/
